@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>교수님 타자 게임</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f0; min-height: 100vh; display: flex; justify-content: center; padding: 2rem 1rem; }
+#app { width: 100%; max-width: 640px; }
+#start-screen { text-align: center; padding: 3rem 1rem; }
+#start-screen h1 { font-size: 28px; font-weight: 600; color: #1a1a1a; margin-bottom: 8px; }
+#start-screen p { font-size: 15px; color: #666; margin-bottom: 2rem; line-height: 1.7; }
+.top-bar { display: flex; gap: 10px; margin-bottom: 1rem; }
+.stat-card { flex: 1; background: #ececec; border-radius: 10px; padding: 8px 10px; }
+.stat-label { font-size: 11px; color: #888; margin-bottom: 2px; }
+.stat-val { font-size: 16px; font-weight: 600; color: #1a1a1a; }
+.professor-area { background: #ececec; border-radius: 14px; border: 0.5px solid #ddd; padding: 1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 1rem; min-height: 80px; }
+.prof-emoji { font-size: 36px; flex-shrink: 0; }
+.speech-bubble { background: #fff; border: 0.5px solid #ccc; border-radius: 12px; padding: 10px 14px; flex: 1; font-size: 14px; color: #1a1a1a; line-height: 1.6; }
+.gauge-area { margin-bottom: 1rem; }
+.gauge-label { font-size: 13px; color: #888; margin-bottom: 6px; display: flex; justify-content: space-between; }
+.gauge-track { height: 16px; background: #ececec; border-radius: 8px; overflow: hidden; border: 0.5px solid #ddd; }
+.gauge-fill { height: 100%; background: #378ADD; border-radius: 8px; transition: width 0.3s; width: 0%; }
+.stage-banner { text-align: center; background: #ececec; border-radius: 8px; padding: 8px; margin-bottom: 1rem; font-size: 13px; color: #666; border: 0.5px solid #ddd; }
+.vscode-area { background: #1e1e1e; border-radius: 12px; overflow: hidden; margin-bottom: 1rem; }
+.vscode-bar { background: #2d2d2d; padding: 6px 12px; display: flex; align-items: center; gap: 8px; }
+.vscode-dot { width: 10px; height: 10px; border-radius: 50%; }
+.vscode-title { font-size: 12px; color: #888; font-family: monospace; }
+.vscode-content { padding: 12px 12px 8px; display: flex; gap: 10px; }
+.line-nums { color: #555; font-size: 13px; line-height: 1.8; text-align: right; min-width: 20px; font-family: monospace; user-select: none; }
+.code-zone { flex: 1; min-width: 0; position: relative; }
+#target-text { font-size: 13px; line-height: 1.8; color: #6a9955; font-family: monospace; white-space: nowrap; overflow: hidden; }
+#typed-display { font-size: 13px; line-height: 1.8; font-family: monospace; min-height: 22px; }
+.char-correct { color: #9cdcfe; }
+.char-wrong { color: #f44747; background: rgba(244,71,71,0.2); }
+.char-pending { color: #444; }
+.char-cursor { border-left: 2px solid #aeafad; }
+#villain-mask { position: absolute; top: 0; left: 0; right: 0; background: #1a1a2e; border-radius: 3px; display: flex; align-items: center; padding: 0 8px; font-size: 12px; color: #666; font-family: monospace; opacity: 0; pointer-events: none; transition: opacity 0.15s; height: 0; overflow: hidden; }
+#villain-mask.show { opacity: 1; height: auto; min-height: 48px; padding: 8px; }
+.input-area { padding: 0 12px 12px; }
+#typing-input { width: 100%; background: #2d2d2d; border: 0.5px solid #444; border-radius: 4px; color: #d4d4d4; font-family: monospace; font-size: 13px; padding: 8px 10px; outline: none; }
+#typing-input:focus { border-color: #007acc; }
+.hint { font-size: 12px; color: #666; margin-top: 6px; }
+.help-hint { font-size: 12px; color: #7ec8a0; margin-top: 4px; display: none; }
+.freeze-banner { display: none; background: #d4edda; border: 0.5px solid #a8d5b5; border-radius: 8px; padding: 8px 12px; margin-bottom: 1rem; font-size: 13px; color: #2d6a4f; text-align: center; }
+#result-screen, #stage-clear { display: none; text-align: center; padding: 3rem 1rem; }
+#result-screen h2, #stage-clear h2 { font-size: 24px; font-weight: 600; color: #1a1a1a; margin-bottom: 8px; }
+#result-screen p, #stage-clear p { font-size: 15px; color: #666; margin-bottom: 1.5rem; line-height: 1.7; white-space: pre-line; }
+button.game-btn { background: #fff; border: 0.5px solid #ccc; border-radius: 8px; padding: 10px 24px; font-size: 14px; color: #1a1a1a; cursor: pointer; font-family: inherit; }
+button.game-btn:hover { background: #f0f0f0; }
+.timer-danger { color: #f44747 !important; }
+</style>
+</head>
+<body>
+<div id="app">
+
+<div id="start-screen">
+  <div style="font-size:56px;margin-bottom:16px">👨‍🏫</div>
+  <h1>교수님 타자 게임</h1>
+  <p>교수님 말씀을 그대로 따라 타이핑하세요!<br>🧑‍💻 빌런이 텍스트를 완전히 가려요 — 다 치면 사라져요 (최대 5회)<br>💬 도움 멘트를 완성하면 5초 시간 정지! (2, 3단계)</p>
+  <button class="game-btn" onclick="startGame()">게임 시작 🚀</button>
+</div>
+
+<div id="game-screen" style="display:none">
+  <div class="top-bar">
+    <div class="stat-card"><div class="stat-label">⏱ 남은 시간</div><div class="stat-val" id="timer-display">60</div></div>
+    <div class="stat-card"><div class="stat-label">📋 단계</div><div class="stat-val" id="stage-display">1단계</div></div>
+    <div class="stat-card"><div class="stat-label">📝 과제</div><div class="stat-val" id="task-display">0 / 7</div></div>
+    <div class="stat-card"><div class="stat-label">💀 빌런</div><div class="stat-val" id="villain-count">0 / 5</div></div>
+  </div>
+  <div class="stage-banner" id="stage-banner"></div>
+  <div class="professor-area">
+    <div class="prof-emoji" id="prof-emoji">👨‍🏫</div>
+    <div class="speech-bubble" id="speech-bubble"></div>
+  </div>
+  <div class="gauge-area">
+    <div class="gauge-label"><span>📝 과제 게이지</span><span id="gauge-pct">0%</span></div>
+    <div class="gauge-track"><div class="gauge-fill" id="gauge-fill"></div></div>
+  </div>
+  <div class="freeze-banner" id="freeze-banner">⏸ 시간 정지 중! (<span id="freeze-count">5</span>초)</div>
+  <div class="vscode-area">
+    <div class="vscode-bar">
+      <div class="vscode-dot" style="background:#ff5f56"></div>
+      <div class="vscode-dot" style="background:#ffbd2e"></div>
+      <div class="vscode-dot" style="background:#27c93f"></div>
+      <div class="vscode-title">assignment.js — Visual Studio Code</div>
+    </div>
+    <div class="vscode-content">
+      <div class="line-nums">1<br>2<br>3</div>
+      <div class="code-zone">
+        <div id="villain-mask">🧑‍💻 빌런이 가리는 중...<br><span style="font-size:11px;color:#555">외워서 쳐보세요! 다 치면 사라져요</span></div>
+        <div id="target-text"></div>
+        <div id="typed-display"></div>
+      </div>
+    </div>
+    <div class="input-area">
+      <input type="text" id="typing-input" placeholder="여기에 타이핑하세요..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+      <div class="hint">💡 빌런이 가려도 다 치면 사라져요!</div>
+      <div class="help-hint" id="help-hint">💬 도움 멘트 완성 → 5초 시간 정지!</div>
+    </div>
+  </div>
+</div>
+
+<div id="stage-clear">
+  <div style="font-size:56px;margin-bottom:16px">🎉</div>
+  <h2 id="clear-title"></h2>
+  <p id="clear-desc"></p>
+  <button class="game-btn" onclick="goNextStage()">다음 단계 🔥</button>
+  <button class="game-btn" style="margin-left:8px" onclick="startGame()">처음부터 🔄</button>
+</div>
+
+<div id="result-screen">
+  <div id="result-emoji" style="font-size:56px;margin-bottom:16px"></div>
+  <h2 id="result-title"></h2>
+  <p id="result-desc"></p>
+  <button class="game-btn" onclick="startGame()">처음부터 🔄</button>
+</div>
+
+</div>
+<script>
+function shuffle(arr) {
+  const a = arr.slice();
+  for(let i = a.length-1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i+1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+const STAGE_DATA = [
+  { level:1, label:'1단계', time:60, helpCount:0,
+    tasks:["바이브 코딩 해보세요","깃허브에 커밋 해보세요","버셀로 배포 해보세요","API 연동 해보세요","bkit 설치하고 실행 해보세요","README 작성해 보세요","npm install 해보세요"] },
+  { level:2, label:'2단계', time:60, helpCount:2,
+    tasks:["리액트 컴포넌트 만들어 보세요","타입스크립트 설정 해보세요","데이터베이스 연동 해보세요","REST API 설계 해보세요","도커 컨테이너 띄워 보세요","CI CD 파이프라인 구성 해보세요","유닛 테스트 작성 해보세요","코드 리뷰 진행 해보세요","성능 최적화 해보세요","보안 취약점 점검 해보세요"] },
+  { level:3, label:'3단계', time:60, helpCount:3,
+    tasks:["마이크로서비스 아키텍처 설계 해보세요","쿠버네티스 클러스터 구성 해보세요","GraphQL 스키마 정의 해보세요","레디스 캐시 레이어 추가 해보세요","오토스케일링 설정 해보세요","분산 트랜잭션 처리 해보세요","머신러닝 모델 배포 해보세요","블록체인 스마트 컨트랙트 작성 해보세요","웹소켓 실시간 통신 구현 해보세요","클라우드 인프라 테라폼 작성 해보세요","서비스 메시 구성 해보세요","A B 테스트 프레임워크 만들어 보세요","데이터 파이프라인 설계 해보세요","이벤트 소싱 패턴 적용 해보세요","제로 다운타임 배포 구현 해보세요"] }
+];
+
+const PROF_HELP = ["교수님 진짜 모르겠어요","교수님 한번만 더 설명해 주세요","교수님 힌트라도 주시면 안될까요"];
+const TA_HELP = ["조교님 도와주세요","조교님 여기서 막혔어요","조교님 제발 살려주세요"];
+const MAX_VILLAIN = 5;
+const VILLAIN_SPEECH = '바이브코딩 많이 어려우시죠? 😏';
+
+let G = {};
+
+function showScreen(id) {
+  ['start-screen','game-screen','stage-clear','result-screen'].forEach(s =>
+    document.getElementById(s).style.display = s===id?'block':'none'
+  );
+}
+
+function clearTimers() {
+  if(G.tickInterval) clearInterval(G.tickInterval);
+  if(G.villainOnTimeout) clearTimeout(G.villainOnTimeout);
+  if(G.villainOffTimeout) clearTimeout(G.villainOffTimeout);
+  if(G.freezeInterval) clearInterval(G.freezeInterval);
+}
+
+function startGame() { G.stageIdx = 0; showScreen('game-screen'); beginStage(); }
+function goNextStage() { showScreen('game-screen'); beginStage(); }
+
+function pickHelpPhrases(count) {
+  if(count === 0) return [];
+  const pool = shuffle([shuffle(PROF_HELP)[0], shuffle(TA_HELP)[0]]);
+  return pool.slice(0, count);
+}
+
+function buildSequence(s) {
+  const tasks = shuffle(s.tasks.slice());
+  const total = tasks.length;
+  const count = s.helpCount;
+  if(count === 0) return tasks.map(t => ({type:'task', text:t}));
+  const helps = pickHelpPhrases(count);
+  const validSlots = [];
+  for(let i = 1; i < total - 1; i++) validSlots.push(i);
+  const chosenSlots = shuffle(validSlots).slice(0, count).sort((a,b)=>a-b);
+  const seq = [];
+  let helpIdx = 0;
+  for(let i = 0; i < total; i++) {
+    if(helpIdx < chosenSlots.length && i === chosenSlots[helpIdx]) {
+      seq.push({type:'help', text:helps[helpIdx]}); helpIdx++;
+    }
+    seq.push({type:'task', text:tasks[i]});
+  }
+  return seq;
+}
+
+function beginStage() {
+  clearTimers();
+  const s = STAGE_DATA[G.stageIdx];
+  G.sequence = buildSequence(s);
+  G.seqIdx = 0; G.tasksDone = 0; G.totalTasks = s.tasks.length;
+  G.typed = ''; G.timer = s.time; G.villainCount = 0;
+  G.villainActive = false; G.frozen = false; G.running = true;
+  G.currentTarget = ''; G.isHelp = false;
+
+  document.getElementById('stage-display').textContent = s.label;
+  document.getElementById('stage-banner').textContent = '📌 ' + s.label + ' — ' + s.time + '초 안에 과제 ' + s.tasks.length + '개!';
+  document.getElementById('help-hint').style.display = s.helpCount > 0 ? 'block' : 'none';
+  document.getElementById('freeze-banner').style.display = 'none';
+  document.getElementById('villain-count').textContent = '0 / ' + MAX_VILLAIN;
+  setVillain(false);
+  loadItem();
+
+  G.tickInterval = setInterval(() => {
+    if(!G.running || G.frozen) return;
+    G.timer--;
+    const td = document.getElementById('timer-display');
+    td.textContent = G.timer;
+    td.className = 'stat-val' + (G.timer <= 10 ? ' timer-danger' : '');
+    if(G.timer <= 0) endStage(false);
+  }, 1000);
+
+  scheduleVillain();
+  document.getElementById('typing-input').focus();
+}
+
+function setVillain(on) {
+  G.villainActive = on;
+  const mask = document.getElementById('villain-mask');
+  const targetEl = document.getElementById('target-text');
+  const typedEl = document.getElementById('typed-display');
+  const profEmoji = document.getElementById('prof-emoji');
+  const speech = document.getElementById('speech-bubble');
+  if(on) {
+    mask.classList.add('show'); targetEl.style.visibility = 'hidden'; typedEl.style.visibility = 'hidden';
+    profEmoji.textContent = '🧑‍💻'; speech.textContent = VILLAIN_SPEECH;
+  } else {
+    mask.classList.remove('show'); targetEl.style.visibility = 'visible'; typedEl.style.visibility = 'visible';
+    profEmoji.textContent = '👨‍🏫';
+    if(G.currentTarget) speech.textContent = G.isHelp ? '💬 "' + G.currentTarget + '" 라고 치면 5초 시간 정지!' : '📢 "' + G.currentTarget + '"';
+  }
+}
+
+function loadItem() {
+  G.typed = ''; document.getElementById('typing-input').value = ''; setVillain(false);
+  const item = G.sequence[G.seqIdx];
+  if(!item) return;
+  G.currentTarget = item.text; G.isHelp = item.type === 'help';
+  document.getElementById('target-text').textContent = '// ' + G.currentTarget;
+  document.getElementById('task-display').textContent = G.tasksDone + ' / ' + G.totalTasks;
+  document.getElementById('speech-bubble').textContent = G.isHelp ? '💬 "' + G.currentTarget + '" 라고 치면 5초 시간 정지!' : '📢 "' + G.currentTarget + '"';
+  document.getElementById('prof-emoji').textContent = '👨‍🏫';
+  updateTypedDisplay(); updateGauge();
+}
+
+function scheduleVillain() {
+  if(G.villainCount >= MAX_VILLAIN) return;
+  const delay = 4000 + Math.random() * 5000;
+  G.villainOnTimeout = setTimeout(() => {
+    if(!G.running || G.villainCount >= MAX_VILLAIN) return;
+    G.villainCount++;
+    document.getElementById('villain-count').textContent = G.villainCount + ' / ' + MAX_VILLAIN;
+    setVillain(true);
+    const dur = 3000 + Math.random() * 2000;
+    G.villainOffTimeout = setTimeout(() => {
+      if(G.running && G.villainActive) { setVillain(false); scheduleVillain(); }
+    }, dur);
+  }, delay);
+}
+
+function updateTypedDisplay() {
+  const target = G.currentTarget; const typed = G.typed;
+  let html = '';
+  for(let i = 0; i < target.length; i++) {
+    const ch = escH(target[i]);
+    if(i < typed.length) html += typed[i]===target[i] ? '<span class="char-correct">'+ch+'</span>' : '<span class="char-wrong">'+ch+'</span>';
+    else if(i===typed.length) html += '<span class="char-cursor char-pending">'+ch+'</span>';
+    else html += '<span class="char-pending">'+ch+'</span>';
+  }
+  document.getElementById('typed-display').innerHTML = html;
+}
+
+function escH(c) { return c==='<'?'&lt;':c==='>'?'&gt;':c==='&'?'&amp;':c===' '?'&nbsp;':c; }
+
+function updateGauge() {
+  const progress = G.isHelp ? 0 : (G.currentTarget.length > 0 ? G.typed.length / G.currentTarget.length : 0);
+  const pct = Math.min(100, Math.round((G.tasksDone + progress) / G.totalTasks * 100));
+  document.getElementById('gauge-fill').style.width = pct + '%';
+  document.getElementById('gauge-pct').textContent = pct + '%';
+}
+
+document.getElementById('typing-input').addEventListener('input', function() {
+  if(!G.running) return;
+  G.typed = this.value.slice(0, G.currentTarget.length);
+  this.value = G.typed;
+  updateTypedDisplay(); updateGauge();
+  if(G.typed === G.currentTarget) {
+    if(G.villainActive) { if(G.villainOffTimeout) clearTimeout(G.villainOffTimeout); setVillain(false); scheduleVillain(); }
+    if(G.isHelp) {
+      G.frozen = true; let left = 5;
+      document.getElementById('freeze-count').textContent = left;
+      document.getElementById('freeze-banner').style.display = 'block';
+      G.seqIdx++; G.typed = ''; this.value = ''; loadItem();
+      if(G.freezeInterval) clearInterval(G.freezeInterval);
+      G.freezeInterval = setInterval(() => {
+        left--; document.getElementById('freeze-count').textContent = left;
+        if(left <= 0) { clearInterval(G.freezeInterval); G.frozen = false; document.getElementById('freeze-banner').style.display = 'none'; }
+      }, 1000);
+    } else {
+      G.tasksDone++; G.seqIdx++;
+      if(G.tasksDone >= G.totalTasks) { endStage(true); return; }
+      G.typed = ''; this.value = ''; loadItem();
+    }
+  }
+});
+
+function endStage(success) {
+  G.running = false; clearTimers();
+  if(!success) {
+    showScreen('result-screen');
+    document.getElementById('result-emoji').textContent = '😭';
+    document.getElementById('result-title').textContent = '시간 초과! 과제 미제출...';
+    document.getElementById('result-desc').textContent = '"열심히 해보세요"만 하시면 저희가 어떻게 해요 교수님...\n진행: '+G.tasksDone+'/'+G.totalTasks+'개 | 빌런 방해: '+G.villainCount+'회';
+  } else if(G.stageIdx < STAGE_DATA.length - 1) {
+    const done = G.stageIdx; G.stageIdx++;
+    showScreen('stage-clear');
+    document.getElementById('clear-title').textContent = '🎉 '+STAGE_DATA[done].label+' 클리어!';
+    const next = STAGE_DATA[G.stageIdx];
+    document.getElementById('clear-desc').textContent = '남은 시간: '+G.timer+'초 | 빌런 방해: '+G.villainCount+'회\n\n다음은 '+next.label+'! '+next.time+'초 안에 과제 '+next.tasks.length+'개';
+  } else {
+    showScreen('result-screen');
+    document.getElementById('result-emoji').textContent = '🏆';
+    document.getElementById('result-title').textContent = '과제를 겨우 완성했다!!';
+    document.getElementById('result-desc').textContent = '3단계 전부 클리어! 교수님 이제 좀 가르쳐주세요...\n남은 시간: '+G.timer+'초 | 빌런 방해: '+G.villainCount+'회';
+  }
+}
+</script>
+</body>
+</html>
