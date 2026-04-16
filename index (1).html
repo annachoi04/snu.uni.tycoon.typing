@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>교수님 타자 게임</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f0; min-height: 100vh; display: flex; justify-content: center; padding: 2rem 1rem; }
+#app { width: 100%; max-width: 640px; }
+
+/* ── 공통 버튼 ── */
+button.game-btn { background: #fff; border: 0.5px solid #ccc; border-radius: 8px; padding: 10px 24px; font-size: 14px; color: #1a1a1a; cursor: pointer; font-family: inherit; }
+button.game-btn:hover { background: #f0f0f0; }
+button.game-btn.primary { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+button.game-btn.primary:hover { background: #333; }
+button.game-btn.danger { background: #fff0f0; border-color: #f4a0a0; color: #c0392b; }
+button.game-btn.danger:hover { background: #ffe0e0; }
+.timer-danger { color: #f44747 !important; }
+
+/* ── 시작 화면 ── */
+#start-screen { text-align: center; padding: 2.5rem 1rem; }
+#start-screen h1 { font-size: 28px; font-weight: 600; color: #1a1a1a; margin-bottom: 8px; }
+#start-screen .subtitle { font-size: 15px; color: #666; margin-bottom: 1.5rem; line-height: 1.7; }
+.theme-select-area { background: #ececec; border-radius: 12px; padding: 1rem; margin-bottom: 1.2rem; text-align: left; }
+.theme-select-label { font-size: 12px; color: #888; margin-bottom: 8px; }
+.theme-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.theme-card { background: #fff; border: 1.5px solid #ddd; border-radius: 8px; padding: 10px 12px; cursor: pointer; transition: border-color 0.15s; }
+.theme-card:hover { border-color: #aaa; }
+.theme-card.selected { border-color: #378ADD; background: #f0f7ff; }
+.theme-card .tc-emoji { font-size: 20px; margin-bottom: 4px; }
+.theme-card .tc-name { font-size: 13px; font-weight: 600; color: #1a1a1a; }
+.theme-card .tc-desc { font-size: 11px; color: #888; margin-top: 2px; }
+.start-btn-row { display: flex; gap: 8px; justify-content: center; margin-bottom: 1rem; }
+.nav-row { display: flex; gap: 16px; justify-content: center; }
+.nav-link { font-size: 13px; color: #888; cursor: pointer; text-decoration: underline; }
+.nav-link:hover { color: #333; }
+
+/* ── 게임 화면 ── */
+#game-screen { display: none; }
+.top-bar { display: flex; gap: 10px; margin-bottom: 1rem; }
+.stat-card { flex: 1; background: #ececec; border-radius: 10px; padding: 8px 10px; }
+.stat-label { font-size: 11px; color: #888; margin-bottom: 2px; }
+.stat-val { font-size: 16px; font-weight: 600; color: #1a1a1a; }
+.professor-area { background: #ececec; border-radius: 14px; border: 0.5px solid #ddd; padding: 1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 1rem; min-height: 80px; }
+.prof-emoji { font-size: 36px; flex-shrink: 0; }
+.speech-bubble { background: #fff; border: 0.5px solid #ccc; border-radius: 12px; padding: 10px 14px; flex: 1; font-size: 14px; color: #1a1a1a; line-height: 1.6; }
+.gauge-area { margin-bottom: 1rem; }
+.gauge-label { font-size: 13px; color: #888; margin-bottom: 6px; display: flex; justify-content: space-between; }
+.gauge-track { height: 16px; background: #ececec; border-radius: 8px; overflow: hidden; border: 0.5px solid #ddd; }
+.gauge-fill { height: 100%; background: #378ADD; border-radius: 8px; transition: width 0.3s; width: 0%; }
+.stage-banner { text-align: center; background: #ececec; border-radius: 8px; padding: 8px; margin-bottom: 1rem; font-size: 13px; color: #666; border: 0.5px solid #ddd; }
+.vscode-area { background: #1e1e1e; border-radius: 12px; overflow: hidden; margin-bottom: 1rem; }
+.vscode-bar { background: #2d2d2d; padding: 6px 12px; display: flex; align-items: center; gap: 8px; }
+.vscode-dot { width: 10px; height: 10px; border-radius: 50%; }
+.vscode-title { font-size: 12px; color: #888; font-family: monospace; }
+.vscode-content { padding: 12px 12px 8px; display: flex; gap: 10px; }
+.line-nums { color: #555; font-size: 13px; line-height: 1.8; text-align: right; min-width: 20px; font-family: monospace; user-select: none; }
+.code-zone { flex: 1; min-width: 0; position: relative; }
+#target-text { font-size: 13px; line-height: 1.8; color: #6a9955; font-family: monospace; white-space: nowrap; overflow: hidden; }
+#typed-display { font-size: 13px; line-height: 1.8; font-family: monospace; min-height: 22px; }
+.char-correct { color: #9cdcfe; }
+.char-wrong { color: #f44747; background: rgba(244,71,71,0.2); }
+.char-pending { color: #444; }
+.char-cursor { border-left: 2px solid #aeafad; }
+#villain-mask { position: absolute; top: 0; left: 0; right: 0; background: #1a1a2e; border-radius: 3px; display: flex; align-items: center; padding: 0 8px; font-size: 12px; color: #666; font-family: monospace; opacity: 0; pointer-events: none; transition: opacity 0.15s; height: 0; overflow: hidden; }
+#villain-mask.show { opacity: 1; height: auto; min-height: 48px; padding: 8px; }
+.input-area { padding: 0 12px 12px; }
+#typing-input { width: 100%; background: #2d2d2d; border: 0.5px solid #444; border-radius: 4px; color: #d4d4d4; font-family: monospace; font-size: 13px; padding: 8px 10px; outline: none; }
+#typing-input:focus { border-color: #007acc; }
+.hint { font-size: 12px; color: #666; margin-top: 6px; }
+.help-hint { font-size: 12px; color: #7ec8a0; margin-top: 4px; display: none; }
+.freeze-banner { display: none; background: #d4edda; border: 0.5px solid #a8d5b5; border-radius: 8px; padding: 8px 12px; margin-bottom: 1rem; font-size: 13px; color: #2d6a4f; text-align: center; }
+
+/* ── 스테이지 클리어 / 결과 ── */
+#result-screen, #stage-clear { display: none; text-align: center; padding: 3rem 1rem; }
+#result-screen h2, #stage-clear h2 { font-size: 24px; font-weight: 600; color: #1a1a1a; margin-bottom: 8px; }
+#result-screen p, #stage-clear p { font-size: 15px; color: #666; margin-bottom: 1.5rem; line-height: 1.7; white-space: pre-line; }
+
+/* ── 점수 입력 ── */
+#score-entry-screen { display: none; text-align: center; padding: 3rem 1rem; }
+#score-entry-screen h2 { font-size: 24px; font-weight: 600; color: #1a1a1a; margin-bottom: 8px; }
+.score-box { background: #fff; border: 1.5px solid #ddd; border-radius: 14px; padding: 1.5rem 2rem; margin: 1.5rem auto; display: inline-block; min-width: 280px; text-align: left; }
+.sb-label { font-size: 12px; color: #888; margin-bottom: 4px; }
+.sb-val { font-size: 30px; font-weight: 700; color: #1a1a1a; margin-bottom: 1.2rem; }
+.sb-name-input { width: 100%; border: 1px solid #ccc; border-radius: 6px; padding: 8px 10px; font-size: 15px; font-family: inherit; outline: none; }
+.sb-name-input:focus { border-color: #378ADD; }
+
+/* ── 리더보드 ── */
+#leaderboard-screen { display: none; padding: 1.5rem 0; }
+#leaderboard-screen h2 { font-size: 22px; font-weight: 600; color: #1a1a1a; margin-bottom: 4px; }
+.lb-sub { font-size: 13px; color: #888; margin-bottom: 1.2rem; }
+.lb-table { width: 100%; border-collapse: collapse; }
+.lb-table th { font-size: 11px; color: #888; text-align: left; padding: 6px 8px; border-bottom: 1px solid #ddd; }
+.lb-table td { font-size: 14px; padding: 10px 8px; border-bottom: 0.5px solid #ececec; color: #1a1a1a; }
+.lb-table tr:first-child td { font-weight: 700; color: #b8860b; }
+.lb-table tr:nth-child(2) td { font-weight: 600; color: #777; }
+.lb-table tr:nth-child(3) td { font-weight: 600; color: #8b4513; }
+.lb-score { text-align: right; font-family: monospace; }
+.lb-empty { text-align: center; color: #aaa; padding: 2rem; font-size: 14px; }
+.lb-nav { display: flex; gap: 8px; justify-content: center; margin-top: 1.2rem; flex-wrap: wrap; }
+
+/* ── 에디터 ── */
+#editor-screen { display: none; padding: 1rem 0; }
+#editor-screen h2 { font-size: 20px; font-weight: 600; color: #1a1a1a; margin-bottom: 4px; }
+.ed-sub { font-size: 13px; color: #888; margin-bottom: 1.2rem; }
+.editor-tabs { display: flex; gap: 4px; margin-bottom: 1rem; }
+.editor-tab { padding: 7px 16px; border-radius: 8px; font-size: 13px; cursor: pointer; border: 1px solid #ddd; background: #fff; color: #666; font-family: inherit; }
+.editor-tab.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+.ai-gen-area { background: #ececec; border-radius: 12px; padding: 1rem; margin-bottom: 1rem; }
+.ai-gen-label { font-size: 12px; color: #555; margin-bottom: 6px; font-weight: 600; }
+.ai-gen-input { width: 100%; border: 1px solid #ccc; border-radius: 8px; padding: 10px 12px; font-size: 14px; font-family: inherit; outline: none; resize: vertical; min-height: 80px; background: #fff; }
+.ai-gen-input:focus { border-color: #378ADD; }
+.ai-status { font-size: 12px; color: #888; margin-top: 6px; min-height: 18px; }
+.ai-result-area { background: #fff; border: 1px solid #ddd; border-radius: 10px; padding: 1rem; margin-top: 1rem; display: none; }
+.ar-title { font-size: 13px; font-weight: 600; color: #1a1a1a; margin-bottom: 8px; }
+.ar-name-row { display: flex; gap: 8px; margin-bottom: 8px; }
+.ar-name-row input { border: 1px solid #ccc; border-radius: 6px; padding: 6px 10px; font-size: 13px; font-family: inherit; outline: none; }
+.ar-name-row input:focus { border-color: #378ADD; }
+.ar-tasks-preview { font-size: 12px; color: #555; line-height: 1.8; max-height: 200px; overflow-y: auto; background: #f9f9f9; border-radius: 6px; padding: 8px 10px; }
+.edit-theme-sel { display: flex; gap: 8px; align-items: center; margin-bottom: 1rem; }
+.edit-theme-sel select { border: 1px solid #ccc; border-radius: 6px; padding: 7px 10px; font-size: 13px; font-family: inherit; outline: none; flex: 1; }
+.stage-edit-section { margin-bottom: 1.2rem; }
+.ses-label { font-size: 12px; font-weight: 600; color: #555; margin-bottom: 6px; }
+.task-edit-row { display: flex; gap: 6px; align-items: center; margin-bottom: 4px; }
+.task-edit-row input { flex: 1; border: 1px solid #ddd; border-radius: 6px; padding: 6px 10px; font-size: 13px; font-family: monospace; outline: none; }
+.task-edit-row input:focus { border-color: #378ADD; }
+.task-edit-row .del-btn { background: none; border: none; cursor: pointer; color: #bbb; font-size: 16px; padding: 4px; line-height: 1; }
+.task-edit-row .del-btn:hover { color: #f44747; }
+.add-task-btn { font-size: 12px; color: #378ADD; cursor: pointer; background: none; border: none; font-family: inherit; padding: 4px 0; }
+.add-task-btn:hover { text-decoration: underline; }
+
+/* ── 비밀번호 모달 ── */
+#pw-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 999; align-items: center; justify-content: center; }
+#pw-modal-overlay.open { display: flex; }
+#pw-modal { background: #fff; border-radius: 14px; padding: 1.5rem; width: 280px; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.18); }
+#pw-modal h3 { font-size: 16px; font-weight: 600; color: #1a1a1a; margin-bottom: 6px; }
+#pw-modal p { font-size: 13px; color: #888; margin-bottom: 1rem; }
+#pw-input { width: 100%; border: 1px solid #ccc; border-radius: 8px; padding: 10px 12px; font-size: 18px; text-align: center; letter-spacing: 6px; font-family: monospace; outline: none; margin-bottom: 6px; }
+#pw-input:focus { border-color: #378ADD; }
+#pw-error { font-size: 12px; color: #f44747; min-height: 16px; margin-bottom: 8px; }
+.pw-btn-row { display: flex; gap: 8px; justify-content: center; }
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ══ 시작 화면 ══ -->
+<div id="start-screen">
+  <div style="font-size:56px;margin-bottom:16px">👨‍🏫</div>
+  <h1>교수님 타자 게임</h1>
+  <p class="subtitle">교수님 말씀을 그대로 따라 타이핑하세요!<br>🧑‍💻 빌런이 텍스트를 완전히 가려요 — 다 치면 사라져요 (최대 5회)<br>💬 도움 멘트를 완성하면 5초 시간 정지! (2, 3단계)</p>
+  <div class="theme-select-area">
+    <div class="theme-select-label">🎨 테마 선택</div>
+    <div class="theme-grid" id="theme-grid"></div>
+  </div>
+  <div class="start-btn-row">
+    <button class="game-btn primary" onclick="startGame()">게임 시작 🚀</button>
+  </div>
+  <div class="nav-row">
+    <span class="nav-link" onclick="openEditor()">✏️ 테마 편집</span>
+    <span class="nav-link" onclick="showScreen('leaderboard-screen');renderLeaderboard()">🏆 리더보드</span>
+  </div>
+</div>
+
+<!-- ══ 게임 화면 ══ -->
+<div id="game-screen">
+  <div class="top-bar">
+    <div class="stat-card"><div class="stat-label">⏱ 남은 시간</div><div class="stat-val" id="timer-display">60.00</div></div>
+    <div class="stat-card"><div class="stat-label">📋 단계</div><div class="stat-val" id="stage-display">1단계</div></div>
+    <div class="stat-card"><div class="stat-label">📝 과제</div><div class="stat-val" id="task-display">0 / 7</div></div>
+    <div class="stat-card"><div class="stat-label">💀 빌런</div><div class="stat-val" id="villain-count">0 / 5</div></div>
+  </div>
+  <div class="stage-banner" id="stage-banner"></div>
+  <div class="professor-area">
+    <div class="prof-emoji" id="prof-emoji">👨‍🏫</div>
+    <div class="speech-bubble" id="speech-bubble"></div>
+  </div>
+  <div class="gauge-area">
+    <div class="gauge-label"><span>📝 과제 게이지</span><span id="gauge-pct">0%</span></div>
+    <div class="gauge-track"><div class="gauge-fill" id="gauge-fill"></div></div>
+  </div>
+  <div class="freeze-banner" id="freeze-banner">⏸ 시간 정지 중! (<span id="freeze-count">5</span>초)</div>
+  <div class="vscode-area">
+    <div class="vscode-bar">
+      <div class="vscode-dot" style="background:#ff5f56"></div>
+      <div class="vscode-dot" style="background:#ffbd2e"></div>
+      <div class="vscode-dot" style="background:#27c93f"></div>
+      <div class="vscode-title">assignment.js — Visual Studio Code</div>
+    </div>
+    <div class="vscode-content">
+      <div class="line-nums">1<br>2<br>3</div>
+      <div class="code-zone">
+        <div id="villain-mask">🧑‍💻 빌런이 가리는 중...<br><span style="font-size:11px;color:#555">외워서 쳐보세요! 다 치면 사라져요</span></div>
+        <div id="target-text"></div>
+        <div id="typed-display"></div>
+      </div>
+    </div>
+    <div class="input-area">
+      <input type="text" id="typing-input" placeholder="여기에 타이핑하세요..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+      <div class="hint">💡 빌런이 가려도 다 치면 사라져요!</div>
+      <div class="help-hint" id="help-hint">💬 도움 멘트 완성 → 5초 시간 정지!</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 스테이지 클리어 ══ -->
+<div id="stage-clear">
+  <div style="font-size:56px;margin-bottom:16px">🎉</div>
+  <h2 id="clear-title"></h2>
+  <p id="clear-desc"></p>
+  <button class="game-btn" onclick="goNextStage()">다음 단계 🔥</button>
+  <button class="game-btn" style="margin-left:8px" onclick="startGame()">처음부터 🔄</button>
+</div>
+
+<!-- ══ 점수 입력 ══ -->
+<div id="score-entry-screen">
+  <div style="font-size:56px;margin-bottom:8px">🏆</div>
+  <h2>3단계 클리어!</h2>
+  <p style="color:#666;font-size:15px;margin-bottom:0;line-height:1.7">리더보드에 이름을 등록하세요</p>
+  <div class="score-box">
+    <div class="sb-label">🎯 당신의 점수 (남은 시간)</div>
+    <div class="sb-val" id="final-score-display">--</div>
+    <div class="sb-label">이름</div>
+    <input class="sb-name-input" id="player-name-input" type="text" maxlength="20" placeholder="이름을 입력하세요" autocomplete="off" />
+  </div>
+  <div style="display:flex;gap:8px;justify-content:center">
+    <button class="game-btn primary" onclick="submitScore()">등록하기 🏅</button>
+    <button class="game-btn" onclick="startGame()">처음부터 🔄</button>
+  </div>
+</div>
+
+<!-- ══ 결과 화면 ══ -->
+<div id="result-screen">
+  <div id="result-emoji" style="font-size:56px;margin-bottom:16px"></div>
+  <h2 id="result-title"></h2>
+  <p id="result-desc"></p>
+  <button class="game-btn" onclick="startGame()">처음부터 🔄</button>
+</div>
+
+<!-- ══ 리더보드 ══ -->
+<div id="leaderboard-screen">
+  <h2>🏆 리더보드</h2>
+  <p class="lb-sub">3단계 클리어 기준 · 남은 시간이 점수</p>
+  <div style="margin-bottom:1rem;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+    <span style="font-size:12px;color:#888">테마:</span>
+    <div id="lb-theme-btns" style="display:flex;gap:6px;flex-wrap:wrap;" data-active="전체"></div>
+  </div>
+  <table class="lb-table">
+    <thead><tr><th style="width:32px">#</th><th>이름</th><th>테마</th><th class="lb-score">점수 (초)</th></tr></thead>
+    <tbody id="lb-body"></tbody>
+  </table>
+  <div class="lb-nav">
+    <button class="game-btn" onclick="showScreen('start-screen');renderStartThemes()">🏠 홈으로</button>
+    <button class="game-btn danger" onclick="clearLeaderboard()">초기화</button>
+  </div>
+</div>
+
+<!-- ══ 에디터 ══ -->
+<div id="editor-screen">
+  <h2>✏️ 테마 편집</h2>
+  <p class="ed-sub">새 테마를 AI로 만들거나, 기존 멘트를 직접 수정하세요</p>
+  <div class="editor-tabs">
+    <button class="editor-tab active" id="tab-ai" onclick="switchEditorTab('ai')">🤖 AI 테마 생성</button>
+    <button class="editor-tab" id="tab-edit" onclick="switchEditorTab('edit')">📝 멘트 수정</button>
+  </div>
+
+  <!-- AI 생성 탭 -->
+  <div id="tab-content-ai">
+    <div class="ai-gen-area">
+      <div class="ai-gen-label">수업(테마)에 대한 설명을 입력하세요</div>
+      <textarea class="ai-gen-input" id="ai-desc-input" placeholder="예: 미적분학 수업입니다. 극한, 미분, 적분 등 핵심 개념을 다룹니다."></textarea>
+      <div style="margin-top:8px">
+        <button class="game-btn primary" onclick="generateTheme()">✨ AI로 멘트 생성</button>
+      </div>
+      <div class="ai-status" id="ai-status"></div>
+    </div>
+    <div class="ai-result-area" id="ai-result-area">
+      <div class="ar-title">생성된 테마 — 이름을 정하고 저장하세요</div>
+      <div class="ar-name-row">
+        <input type="text" id="new-theme-name" placeholder="테마 이름 (예: 미적분학)" maxlength="20" style="flex:1" />
+        <input type="text" id="new-theme-emoji" placeholder="🎓" maxlength="4" style="width:56px;text-align:center" />
+      </div>
+      <div style="margin-bottom:8px">
+        <div style="font-size:12px;color:#555;margin-bottom:4px;font-weight:600">📣 플레이어에게 보이는 수업 설명 <span style="font-weight:400;color:#aaa">(선택)</span></div>
+        <textarea id="new-player-desc" style="width:100%;border:1px solid #ccc;border-radius:6px;padding:8px 10px;font-size:13px;font-family:inherit;resize:vertical;min-height:56px;outline:none;" placeholder="플레이어에게 보여줄 수업 소개 문장을 입력하세요"></textarea>
+      </div>
+      <div style="margin-bottom:8px">
+        <div style="font-size:12px;color:#555;margin-bottom:4px;font-weight:600">🧑‍💻 빌런 멘트 <span style="font-weight:400;color:#aaa">(AI 생성값 수정 가능)</span></div>
+        <input type="text" id="new-villain-speech" style="width:100%;border:1px solid #ccc;border-radius:6px;padding:6px 10px;font-size:13px;font-family:inherit;outline:none;" placeholder="예: 미적분 많이 어려우시죠? 😏" />
+      </div>
+      <div class="ar-tasks-preview" id="ai-tasks-preview"></div>
+      <div style="margin-top:10px;display:flex;gap:8px;">
+        <button class="game-btn primary" onclick="saveGeneratedTheme()">💾 저장</button>
+        <button class="game-btn" onclick="generateTheme()">🔄 다시 생성</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 멘트 수정 탭 -->
+  <div id="tab-content-edit" style="display:none">
+    <div class="edit-theme-sel">
+      <select id="edit-theme-select" onchange="renderEditPanel()"></select>
+      <button class="game-btn danger" id="delete-theme-btn" onclick="deleteSelectedTheme()">삭제</button>
+    </div>
+    <div id="edit-panel"></div>
+    <div style="text-align:center;margin-top:1rem;">
+      <button class="game-btn primary" onclick="saveEditedTheme()">💾 변경사항 저장</button>
+    </div>
+  </div>
+
+  <div style="text-align:center;margin-top:1.5rem;">
+    <button class="game-btn" onclick="showScreen('start-screen');renderStartThemes()">← 홈으로</button>
+  </div>
+</div>
+
+</div>
+
+<!-- ══ 비밀번호 모달 ══ -->
+<div id="pw-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:999;align-items:center;justify-content:center;">
+  <div id="pw-modal" style="background:#fff;border-radius:14px;padding:1.5rem;width:280px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.18);">
+    <div style="font-size:32px;margin-bottom:8px">🔒</div>
+    <div style="font-size:16px;font-weight:600;color:#1a1a1a;margin-bottom:6px">에디터 접근</div>
+    <div style="font-size:13px;color:#888;margin-bottom:1rem">비밀번호를 입력하세요</div>
+    <input id="pw-input" type="password" maxlength="10" placeholder="····"
+      autocomplete="off"
+      style="width:100%;border:1px solid #ccc;border-radius:8px;padding:10px 12px;font-size:20px;text-align:center;letter-spacing:6px;font-family:monospace;outline:none;margin-bottom:6px;box-sizing:border-box;"
+      onkeydown="if(event.key==='Enter')checkPw()" />
+    <div id="pw-error" style="font-size:12px;color:#f44747;min-height:18px;margin-bottom:8px;"></div>
+    <div style="display:flex;gap:8px;justify-content:center;">
+      <button class="game-btn primary" onclick="checkPw()">확인</button>
+      <button class="game-btn" onclick="closePwModal()">취소</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 확인 모달 (confirm 대체) ══ -->
+<div id="confirm-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;padding:1.5rem;width:300px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.18);">
+    <div id="confirm-msg" style="font-size:15px;color:#1a1a1a;margin-bottom:1.2rem;line-height:1.6;"></div>
+    <div style="display:flex;gap:8px;justify-content:center;">
+      <button class="game-btn danger" id="confirm-ok-btn">확인</button>
+      <button class="game-btn" onclick="closeConfirm()">취소</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══ 데이터 ═══ */
+const DEFAULT_THEMES = [
+  { id:'vibe', name:'바이브 코딩', emoji:'💻',
+    desc:'bkit 바이브 코딩 수업',
+    playerDesc:'AI 도구로 빠르게 아이디어를 구현하는 바이브 코딩 수업입니다. 교수님 말씀을 따라 타이핑하세요!',
+    villainSpeech:'바이브코딩 많이 어려우시죠? 😏',
+    builtin:true,
+    stages:[
+      { level:1, label:'1단계', time:60, helpCount:0,
+        tasks:["바이브 코딩 해보세요","깃허브에 커밋 해보세요","버셀로 배포 해보세요","API 연동 해보세요","bkit 설치하고 실행 해보세요","README 작성해 보세요","npm install 해보세요"] },
+      { level:2, label:'2단계', time:60, helpCount:2,
+        tasks:["리액트 컴포넌트 만들어 보세요","타입스크립트 설정 해보세요","데이터베이스 연동 해보세요","REST API 설계 해보세요","도커 컨테이너 띄워 보세요","CI CD 파이프라인 구성 해보세요","유닛 테스트 작성 해보세요","코드 리뷰 진행 해보세요","성능 최적화 해보세요","보안 취약점 점검 해보세요"] },
+      { level:3, label:'3단계', time:60, helpCount:3,
+        tasks:["마이크로서비스 아키텍처 설계 해보세요","쿠버네티스 클러스터 구성 해보세요","GraphQL 스키마 정의 해보세요","레디스 캐시 레이어 추가 해보세요","오토스케일링 설정 해보세요","분산 트랜잭션 처리 해보세요","머신러닝 모델 배포 해보세요","블록체인 스마트 컨트랙트 작성 해보세요","웹소켓 실시간 통신 구현 해보세요","클라우드 인프라 테라폼 작성 해보세요","서비스 메시 구성 해보세요","A B 테스트 프레임워크 만들어 보세요","데이터 파이프라인 설계 해보세요","이벤트 소싱 패턴 적용 해보세요","제로 다운타임 배포 구현 해보세요"] }
+    ]
+  }
+];
+
+const EDITOR_PW = '0412';
+
+function deepClone(obj){ return JSON.parse(JSON.stringify(obj)); }
+function loadThemes(){
+  try{ const s=JSON.parse(localStorage.getItem('themes_v3')||'null'); if(s&&Array.isArray(s)&&s.length) return s; }catch(e){}
+  return deepClone(DEFAULT_THEMES);
+}
+function saveThemes(t){ localStorage.setItem('themes_v3',JSON.stringify(t)); }
+function loadLeaderboard(){ try{ return JSON.parse(localStorage.getItem('lb_v1')||'[]'); }catch(e){ return []; } }
+function saveLeaderboard(lb){ localStorage.setItem('lb_v1',JSON.stringify(lb)); }
+
+let themes = loadThemes();
+let selectedThemeId = themes[0]?.id || 'vibe';
+
+/* ═══ 화면 전환 ═══ */
+const ALL_SCREENS=['start-screen','game-screen','stage-clear','result-screen','leaderboard-screen','editor-screen','score-entry-screen'];
+function showScreen(id){ ALL_SCREENS.forEach(s=>document.getElementById(s).style.display=s===id?'block':'none'); }
+
+/* ═══ 에디터 비밀번호 확인 ═══ */
+let editorUnlocked = false;
+let pendingAfterPw = null;
+
+function openEditorPwModal(){
+  const overlay=document.getElementById('pw-modal-overlay');
+  overlay.style.display='flex';
+  document.getElementById('pw-input').value='';
+  document.getElementById('pw-error').textContent='';
+  setTimeout(()=>document.getElementById('pw-input').focus(),100);
+}
+function openEditor(){
+  if(editorUnlocked){ showScreen('editor-screen'); renderEditorScreen(); return; }
+  pendingAfterPw = ()=>{ showScreen('editor-screen'); renderEditorScreen(); };
+  openEditorPwModal();
+}
+function closePwModal(){
+  document.getElementById('pw-modal-overlay').style.display='none';
+  pendingAfterPw=null;
+}
+function checkPw(){
+  const val=document.getElementById('pw-input').value;
+  if(val===EDITOR_PW){
+    editorUnlocked=true;
+    document.getElementById('pw-modal-overlay').style.display='none';
+    if(pendingAfterPw){ pendingAfterPw(); pendingAfterPw=null; }
+  } else {
+    document.getElementById('pw-error').textContent='비밀번호가 틀렸습니다.';
+    document.getElementById('pw-input').value='';
+    document.getElementById('pw-input').focus();
+  }
+}
+
+/* ═══ 시작 화면 ═══ */
+function renderStartThemes(){
+  themes=loadThemes();
+  if(!themes.find(t=>t.id===selectedThemeId)) selectedThemeId=themes[0]?.id;
+  const grid=document.getElementById('theme-grid');
+  grid.innerHTML='';
+  themes.forEach(t=>{
+    const card=document.createElement('div');
+    card.className='theme-card'+(t.id===selectedThemeId?' selected':'');
+    card.innerHTML=`<div class="tc-emoji">${t.emoji}</div><div class="tc-name">${escText(t.name)}</div><div class="tc-desc">${escText(t.playerDesc||t.desc||'')}</div>`;
+    card.onclick=()=>{ selectedThemeId=t.id; renderStartThemes(); };
+    grid.appendChild(card);
+  });
+}
+
+/* ═══ 게임 로직 ═══ */
+const PROF_HELP=["교수님 모르겠어요"];
+const TA_HELP=["조교님 도와주세요"];
+const MAX_VILLAIN=5;
+let G={};
+
+function shuffle(arr){ const a=arr.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+
+function pickHelpPhrases(count){
+  if(count===0) return [];
+  const fixed=[PROF_HELP[0],TA_HELP[0]];
+  return Array.from({length:count},(_,i)=>fixed[i%fixed.length]);
+}
+
+function buildSequence(s){
+  const tasks=shuffle(s.tasks.slice()); const total=tasks.length; const count=s.helpCount;
+  if(count===0) return tasks.map(t=>({type:'task',text:t}));
+  const helps=pickHelpPhrases(count);
+  const validSlots=[]; for(let i=1;i<total-1;i++) validSlots.push(i);
+  const chosen=shuffle(validSlots).slice(0,count).sort((a,b)=>a-b);
+  const seq=[]; let hi=0;
+  for(let i=0;i<total;i++){
+    if(hi<chosen.length&&i===chosen[hi]){seq.push({type:'help',text:helps[hi]});hi++;}
+    seq.push({type:'task',text:tasks[i]});
+  }
+  return seq;
+}
+
+function startGame(){
+  themes=loadThemes();
+  const theme=themes.find(t=>t.id===selectedThemeId)||themes[0];
+  G.stageData=theme.stages; G.stageIdx=0; G.themeName=theme.name;
+  G.villainSpeech=theme.villainSpeech||'이 수업 많이 어려우시죠? 😏';
+  showScreen('game-screen'); beginStage();
+}
+function goNextStage(){ showScreen('game-screen'); beginStage(); }
+
+function clearTimers(){
+  if(G.tickInterval) clearInterval(G.tickInterval);
+  if(G.villainOnTimeout) clearTimeout(G.villainOnTimeout);
+  if(G.villainOffTimeout) clearTimeout(G.villainOffTimeout);
+  if(G.freezeInterval) clearInterval(G.freezeInterval);
+}
+
+function beginStage(){
+  clearTimers();
+  const s=G.stageData[G.stageIdx];
+  G.sequence=buildSequence(s);
+  G.seqIdx=0; G.tasksDone=0; G.totalTasks=s.tasks.length;
+  G.typed=''; G.timerMs=s.time*1000; G.villainCount=0;
+  G.villainActive=false; G.frozen=false; G.running=true;
+  G.currentTarget=''; G.isHelp=false; G.lastTick=performance.now();
+
+  document.getElementById('stage-display').textContent=s.label;
+  document.getElementById('stage-banner').textContent='📌 '+s.label+' — '+s.time+'초 안에 과제 '+s.tasks.length+'개!';
+  document.getElementById('help-hint').style.display=s.helpCount>0?'block':'none';
+  document.getElementById('freeze-banner').style.display='none';
+  document.getElementById('villain-count').textContent='0 / '+MAX_VILLAIN;
+  setVillain(false); loadItem();
+
+  G.tickInterval=setInterval(()=>{
+    if(!G.running||G.frozen){G.lastTick=performance.now();return;}
+    const now=performance.now();
+    G.timerMs-=(now-G.lastTick); G.lastTick=now;
+    if(G.timerMs<0) G.timerMs=0;
+    const td=document.getElementById('timer-display');
+    td.textContent=(G.timerMs/1000).toFixed(2);
+    td.className='stat-val'+(G.timerMs<=10000?' timer-danger':'');
+    if(G.timerMs<=0) endStage(false);
+  },50);
+
+  scheduleVillain();
+  document.getElementById('typing-input').focus();
+}
+
+function setVillain(on){
+  G.villainActive=on;
+  const mask=document.getElementById('villain-mask');
+  const tEl=document.getElementById('target-text');
+  const dEl=document.getElementById('typed-display');
+  const pe=document.getElementById('prof-emoji');
+  const sp=document.getElementById('speech-bubble');
+  if(on){
+    mask.classList.add('show'); tEl.style.visibility='hidden'; dEl.style.visibility='hidden';
+    pe.textContent='🧑‍💻'; sp.textContent=G.villainSpeech||'이 수업 많이 어려우시죠? 😏';
+  } else {
+    mask.classList.remove('show'); tEl.style.visibility='visible'; dEl.style.visibility='visible';
+    pe.textContent='👨‍🏫';
+    if(G.currentTarget) sp.textContent=G.isHelp?'💬 "'+G.currentTarget+'" 라고 치면 5초 시간 정지!':'📢 "'+G.currentTarget+'"';
+  }
+}
+
+function loadItem(){
+  G.typed=''; document.getElementById('typing-input').value=''; setVillain(false);
+  const item=G.sequence[G.seqIdx];
+  if(!item) return;
+  G.currentTarget=item.text; G.isHelp=item.type==='help';
+  document.getElementById('target-text').textContent='// '+G.currentTarget;
+  document.getElementById('task-display').textContent=G.tasksDone+' / '+G.totalTasks;
+  document.getElementById('speech-bubble').textContent=G.isHelp?'💬 "'+G.currentTarget+'" 라고 치면 5초 시간 정지!':'📢 "'+G.currentTarget+'"';
+  document.getElementById('prof-emoji').textContent='👨‍🏫';
+  updateTypedDisplay(); updateGauge();
+}
+
+function scheduleVillain(){
+  if(G.villainCount>=MAX_VILLAIN) return;
+  const delay=4000+Math.random()*5000;
+  G.villainOnTimeout=setTimeout(()=>{
+    if(!G.running||G.villainCount>=MAX_VILLAIN) return;
+    // 도움 멘트 진행 중이거나 freeze 중이면 등장 안 함
+    if(G.isHelp||G.frozen){scheduleVillain();return;}
+    G.villainCount++;
+    document.getElementById('villain-count').textContent=G.villainCount+' / '+MAX_VILLAIN;
+    setVillain(true);
+    const dur=3000+Math.random()*2000;
+    G.villainOffTimeout=setTimeout(()=>{if(G.running&&G.villainActive&&!G.frozen){setVillain(false);scheduleVillain();}},dur);
+  },delay);
+}
+
+function updateTypedDisplay(){
+  const target=G.currentTarget; const typed=G.typed; let html='';
+  for(let i=0;i<target.length;i++){
+    const ch=escH(target[i]);
+    if(i<typed.length) html+=typed[i]===target[i]?'<span class="char-correct">'+ch+'</span>':'<span class="char-wrong">'+ch+'</span>';
+    else if(i===typed.length) html+='<span class="char-cursor char-pending">'+ch+'</span>';
+    else html+='<span class="char-pending">'+ch+'</span>';
+  }
+  document.getElementById('typed-display').innerHTML=html;
+}
+
+function escH(c){return c==='<'?'&lt;':c==='>'?'&gt;':c==='&'?'&amp;':c===' '?'&nbsp;':c;}
+function escText(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+
+function updateGauge(){
+  const prog=G.isHelp?0:(G.currentTarget.length>0?G.typed.length/G.currentTarget.length:0);
+  const pct=Math.min(100,Math.round((G.tasksDone+prog)/G.totalTasks*100));
+  document.getElementById('gauge-fill').style.width=pct+'%';
+  document.getElementById('gauge-pct').textContent=pct+'%';
+}
+
+document.getElementById('typing-input').addEventListener('input',function(){
+  if(!G.running) return;
+  G.typed=this.value.slice(0,G.currentTarget.length);
+  this.value=G.typed;
+  updateTypedDisplay(); updateGauge();
+  if(G.typed===G.currentTarget){
+    if(G.isHelp){
+      // 도움 멘트 완성: 빌런 즉시 제거 후 freeze
+      if(G.villainActive){if(G.villainOffTimeout)clearTimeout(G.villainOffTimeout);setVillain(false);}
+      if(G.villainOnTimeout){clearTimeout(G.villainOnTimeout);G.villainOnTimeout=null;}
+      G.frozen=true; let left=5;
+      document.getElementById('freeze-count').textContent=left;
+      document.getElementById('freeze-banner').style.display='block';
+      G.seqIdx++; G.typed=''; this.value=''; loadItem();
+      if(G.freezeInterval) clearInterval(G.freezeInterval);
+      G.freezeInterval=setInterval(()=>{
+        left--; document.getElementById('freeze-count').textContent=left;
+        if(left<=0){
+          clearInterval(G.freezeInterval);
+          G.frozen=false;
+          document.getElementById('freeze-banner').style.display='none';
+          G.lastTick=performance.now();
+          scheduleVillain(); // freeze 끝난 후 빌런 스케줄 재개
+        }
+      },1000);
+    } else {
+      if(G.villainActive){if(G.villainOffTimeout)clearTimeout(G.villainOffTimeout);setVillain(false);scheduleVillain();}
+      G.tasksDone++; G.seqIdx++;
+      if(G.tasksDone>=G.totalTasks){endStage(true);return;}
+      G.typed=''; this.value=''; loadItem();
+    }
+  }
+});
+
+function endStage(success){
+  G.running=false; clearTimers();
+  if(!success){
+    showScreen('result-screen');
+    document.getElementById('result-emoji').textContent='😭';
+    document.getElementById('result-title').textContent='시간 초과! 과제 미제출...';
+    document.getElementById('result-desc').textContent='"열심히 해보세요"만 하시면 저희가 어떻게 해요 교수님...\n진행: '+G.tasksDone+'/'+G.totalTasks+'개 | 빌런 방해: '+G.villainCount+'회';
+  } else if(G.stageIdx<G.stageData.length-1){
+    const done=G.stageIdx; G.stageIdx++;
+    showScreen('stage-clear');
+    document.getElementById('clear-title').textContent='🎉 '+G.stageData[done].label+' 클리어!';
+    const next=G.stageData[G.stageIdx];
+    document.getElementById('clear-desc').textContent='남은 시간: '+(G.timerMs/1000).toFixed(2)+'초 | 빌런 방해: '+G.villainCount+'회\n\n다음은 '+next.label+'! '+next.time+'초 안에 과제 '+next.tasks.length+'개';
+  } else {
+    G.finalScore=parseFloat((G.timerMs/1000).toFixed(2));
+    showScreen('score-entry-screen');
+    document.getElementById('final-score-display').textContent=G.finalScore.toFixed(2)+'초';
+    document.getElementById('player-name-input').value='';
+    setTimeout(()=>document.getElementById('player-name-input').focus(),100);
+  }
+}
+
+/* ═══ 점수 등록 ═══ */
+function submitScore(){
+  const name=document.getElementById('player-name-input').value.trim();
+  if(!name){alert('이름을 입력해주세요!');return;}
+  const lb=loadLeaderboard();
+  lb.push({name,score:G.finalScore,theme:G.themeName,date:new Date().toLocaleDateString('ko-KR')});
+  lb.sort((a,b)=>b.score-a.score);
+  saveLeaderboard(lb);
+  showScreen('leaderboard-screen'); renderLeaderboard();
+}
+
+/* ═══ 리더보드 ═══ */
+function renderLeaderboard(){
+  const lb=loadLeaderboard();
+  const filterRow=document.getElementById('lb-theme-btns');
+  const active=filterRow.dataset.active||'전체';
+  const themeNames=[...new Set(lb.map(e=>e.theme))];
+  filterRow.innerHTML='';
+  ['전체',...themeNames].forEach(tn=>{
+    const btn=document.createElement('button');
+    btn.className='game-btn'+(active===tn?' primary':'');
+    btn.textContent=tn; btn.style.cssText='padding:4px 12px;font-size:12px';
+    btn.onclick=()=>{filterRow.dataset.active=tn;renderLeaderboard();};
+    filterRow.appendChild(btn);
+  });
+  const filtered=active==='전체'?lb:lb.filter(e=>e.theme===active);
+  const body=document.getElementById('lb-body');
+  body.innerHTML='';
+  if(!filtered.length){
+    body.innerHTML='<tr><td colspan="4" class="lb-empty">아직 기록이 없어요 🥲</td></tr>';return;
+  }
+  const medals=['🥇','🥈','🥉'];
+  filtered.forEach((e,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td style="width:32px;font-weight:700">${medals[i]||i+1}</td><td>${escText(e.name)}</td><td style="font-size:12px;color:#888">${escText(e.theme||'')} <span style="color:#ccc">${e.date||''}</span></td><td class="lb-score">${e.score.toFixed(2)}</td>`;
+    body.appendChild(tr);
+  });
+}
+
+/* ═══ 커스텀 confirm 모달 ═══ */
+function showConfirm(msg, onOk){
+  document.getElementById('confirm-msg').textContent=msg;
+  const overlay=document.getElementById('confirm-overlay');
+  overlay.style.display='flex';
+  const okBtn=document.getElementById('confirm-ok-btn');
+  okBtn.onclick=()=>{ closeConfirm(); onOk(); };
+}
+function closeConfirm(){
+  document.getElementById('confirm-overlay').style.display='none';
+}
+
+function clearLeaderboard(){
+  // 비밀번호 먼저 확인
+  if(editorUnlocked){
+    showConfirm('리더보드를 초기화할까요?', ()=>{ saveLeaderboard([]); renderLeaderboard(); });
+  } else {
+    // 비밀번호 모달 열고, 성공 시 초기화 실행
+    pendingAfterPw = ()=>{ showConfirm('리더보드를 초기화할까요?', ()=>{ saveLeaderboard([]); renderLeaderboard(); }); };
+    openEditorPwModal();
+  }
+}
+
+/* ═══ 에디터 ═══ */
+function switchEditorTab(tab){
+  document.getElementById('tab-ai').className='editor-tab'+(tab==='ai'?' active':'');
+  document.getElementById('tab-edit').className='editor-tab'+(tab==='edit'?' active':'');
+  document.getElementById('tab-content-ai').style.display=tab==='ai'?'block':'none';
+  document.getElementById('tab-content-edit').style.display=tab==='edit'?'block':'none';
+  if(tab==='edit') populateEditSelect();
+}
+
+function renderEditorScreen(){ switchEditorTab('ai'); }
+
+/* AI 생성 */
+let generatedStages=null;
+let generatedVillainSpeech='';
+async function generateTheme(){
+  const desc=document.getElementById('ai-desc-input').value.trim();
+  if(!desc){alert('수업 설명을 입력해주세요!');return;}
+  document.getElementById('ai-status').textContent='⏳ AI가 멘트를 생성 중...';
+  document.getElementById('ai-result-area').style.display='none';
+  generatedStages=null;
+
+  const prompt=`당신은 타이핑 게임용 멘트를 생성하는 도우미입니다.
+수업 설명: "${desc}"
+
+위 수업 내용을 바탕으로 3단계 타이핑 게임 멘트와 빌런 멘트를 만들어주세요.
+규칙:
+- 과제 멘트: "~해보세요" 형태의 짧은 한국어 문장 (20자 이하, 공백 포함)
+- 빌런 멘트: 이 수업이 어렵다고 비꼬는 짧은 한국어 문장 (이모지 1개 포함, 20자 이하)
+- 1단계 7개 (쉬운 개념), 2단계 10개 (중간 난이도), 3단계 15개 (어려운 개념)
+- 아래 JSON 형식으로만 응답하세요 (설명 없이, 코드블록 없이):
+
+{"stage1":["멘트1","멘트2",...],"stage2":["멘트1",...],"stage3":["멘트1",...],"villainSpeech":"빌런멘트"}`;
+
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1200,messages:[{role:'user',content:prompt}]})
+    });
+    const data=await res.json();
+    const text=data.content.map(b=>b.text||'').join('');
+    const parsed=JSON.parse(text.replace(/```json|```/g,'').trim());
+    generatedStages=[
+      {level:1,label:'1단계',time:60,helpCount:0,tasks:parsed.stage1},
+      {level:2,label:'2단계',time:60,helpCount:2,tasks:parsed.stage2},
+      {level:3,label:'3단계',time:60,helpCount:3,tasks:parsed.stage3}
+    ];
+    generatedVillainSpeech=parsed.villainSpeech||'이 수업 많이 어려우시죠? 😏';
+    document.getElementById('ai-status').textContent='✅ 생성 완료!';
+    document.getElementById('ai-result-area').style.display='block';
+    document.getElementById('new-theme-name').value='';
+    document.getElementById('new-theme-emoji').value='📚';
+    document.getElementById('new-villain-speech').value=generatedVillainSpeech;
+    const preview=document.getElementById('ai-tasks-preview');
+    preview.innerHTML=['stage1','stage2','stage3'].map((k,si)=>
+      `<b>✦ ${si+1}단계</b><br>`+parsed[k].map(t=>'  '+escText(t)).join('<br>')+'<br>'
+    ).join('')+`<b>✦ 빌런 멘트</b><br>  ${escText(generatedVillainSpeech)}`;
+  }catch(e){
+    document.getElementById('ai-status').textContent='❌ 생성 실패: '+e.message;
+  }
+}
+
+function saveGeneratedTheme(){
+  if(!generatedStages){alert('먼저 AI 생성을 해주세요.');return;}
+  const name=document.getElementById('new-theme-name').value.trim();
+  const emoji=document.getElementById('new-theme-emoji').value.trim()||'📚';
+  const playerDesc=document.getElementById('new-player-desc').value.trim();
+  const villainSpeech=document.getElementById('new-villain-speech').value.trim()||generatedVillainSpeech||'이 수업 많이 어려우시죠? 😏';
+  if(!name){alert('테마 이름을 입력해주세요.');return;}
+  themes=loadThemes();
+  const id='custom_'+Date.now();
+  const aiDesc=document.getElementById('ai-desc-input').value.trim();
+  themes.push({id,name,emoji,
+    desc:aiDesc.slice(0,40),
+    playerDesc:playerDesc||aiDesc.slice(0,100),
+    villainSpeech,
+    builtin:false,stages:generatedStages});
+  saveThemes(themes);
+  selectedThemeId=id;
+  alert(`"${name}" 테마가 저장되었습니다!`);
+  document.getElementById('ai-result-area').style.display='none';
+  document.getElementById('ai-status').textContent='';
+  document.getElementById('ai-desc-input').value='';
+  generatedStages=null;
+}
+
+/* 멘트 수정 */
+function populateEditSelect(){
+  themes=loadThemes();
+  const sel=document.getElementById('edit-theme-select');
+  const prev=sel.value;
+  sel.innerHTML='';
+  themes.forEach(t=>{
+    const opt=document.createElement('option');
+    opt.value=t.id; opt.textContent=t.emoji+' '+t.name+(t.builtin?' (기본)':'');
+    sel.appendChild(opt);
+  });
+  if(prev&&themes.find(t=>t.id===prev)) sel.value=prev;
+  renderEditPanel();
+}
+
+function renderEditPanel(){
+  themes=loadThemes();
+  const tid=document.getElementById('edit-theme-select').value;
+  const theme=themes.find(t=>t.id===tid);
+  document.getElementById('delete-theme-btn').style.display=theme?.builtin?'none':'';
+  const panel=document.getElementById('edit-panel');
+  if(!theme){panel.innerHTML='';return;}
+
+  // 상단 메타 정보 편집 (플레이어용 설명, 빌런 멘트)
+  panel.innerHTML=`
+    <div class="stage-edit-section">
+      <div class="ses-label">📣 플레이어에게 보이는 수업 설명</div>
+      <textarea id="edit-player-desc" style="width:100%;border:1px solid #ddd;border-radius:6px;padding:8px 10px;font-size:13px;font-family:inherit;resize:vertical;min-height:60px;outline:none;">${escText(theme.playerDesc||theme.desc||'')}</textarea>
+    </div>
+    <div class="stage-edit-section">
+      <div class="ses-label">🧑‍💻 빌런 멘트</div>
+      <input type="text" id="edit-villain-speech" value="${escText(theme.villainSpeech||'이 수업 많이 어려우시죠? 😏')}" style="width:100%;border:1px solid #ddd;border-radius:6px;padding:6px 10px;font-size:13px;font-family:inherit;outline:none;" />
+    </div>`;
+
+  theme.stages.forEach((s,si)=>{
+    const sec=document.createElement('div');
+    sec.className='stage-edit-section';
+    sec.innerHTML=`<div class="ses-label">${s.label} 멘트 (${s.tasks.length}개)</div>`;
+    s.tasks.forEach((task,ti)=>{
+      const row=document.createElement('div');
+      row.className='task-edit-row';
+      const inp=document.createElement('input');
+      inp.type='text'; inp.value=task; inp.dataset.si=si; inp.dataset.ti=ti;
+      const btn=document.createElement('button');
+      btn.className='del-btn'; btn.textContent='✕';
+      btn.onclick=()=>{ themes=loadThemes(); const th=themes.find(t=>t.id===tid); if(th){th.stages[si].tasks.splice(ti,1);saveThemes(themes);renderEditPanel();} };
+      row.appendChild(inp); row.appendChild(btn); sec.appendChild(row);
+    });
+    const addBtn=document.createElement('button');
+    addBtn.className='add-task-btn'; addBtn.textContent='+ 멘트 추가';
+    addBtn.onclick=()=>{ themes=loadThemes(); const th=themes.find(t=>t.id===tid); if(th){th.stages[si].tasks.push('새 멘트를 입력해보세요');saveThemes(themes);renderEditPanel();} };
+    sec.appendChild(addBtn);
+    panel.appendChild(sec);
+  });
+}
+
+function saveEditedTheme(){
+  themes=loadThemes();
+  const tid=document.getElementById('edit-theme-select').value;
+  const theme=themes.find(t=>t.id===tid);
+  if(!theme) return;
+  // 메타 정보 저장
+  const pdEl=document.getElementById('edit-player-desc');
+  const vsEl=document.getElementById('edit-villain-speech');
+  if(pdEl) theme.playerDesc=pdEl.value.trim();
+  if(vsEl) theme.villainSpeech=vsEl.value.trim();
+  // 과제 멘트 저장
+  document.querySelectorAll('#edit-panel input[data-si]').forEach(inp=>{
+    const si=parseInt(inp.dataset.si),ti=parseInt(inp.dataset.ti);
+    if(theme.stages[si]&&theme.stages[si].tasks[ti]!==undefined) theme.stages[si].tasks[ti]=inp.value.trim()||theme.stages[si].tasks[ti];
+  });
+  saveThemes(themes);
+  alert('저장되었습니다!');
+}
+
+function deleteSelectedTheme(){
+  themes=loadThemes();
+  const tid=document.getElementById('edit-theme-select').value;
+  const theme=themes.find(t=>t.id===tid);
+  if(theme?.builtin){ showConfirm('기본 테마는 삭제할 수 없어요.', ()=>{}); return; }
+  showConfirm(`"${theme?.name}" 테마를 삭제할까요?`, ()=>{
+    themes=themes.filter(t=>t.id!==tid);
+    saveThemes(themes);
+    if(selectedThemeId===tid) selectedThemeId=themes[0]?.id;
+    populateEditSelect();
+  });
+}
+
+/* ═══ 초기화 ═══ */
+showScreen('start-screen');
+renderStartThemes();
+</script>
+</body>
+</html>
