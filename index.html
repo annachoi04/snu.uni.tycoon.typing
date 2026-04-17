@@ -719,7 +719,18 @@ async function generateTheme(){
     const res=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt})});
     const data=await res.json();
     const text=data.content.map(b=>b.text||'').join('');
-    const parsed=JSON.parse(text.replace(/```json|```/g,'').trim());
+    let parsed;
+    try {
+      const clean=text.replace(/```json|```/g,'').trim();
+      // JSON 블록만 추출
+      const jsonMatch=clean.match(/\{[\s\S]*\}/);
+      parsed=JSON.parse(jsonMatch?jsonMatch[0]:clean);
+    } catch(e){
+      throw new Error('JSON 파싱 실패: '+text.slice(0,200));
+    }
+    if(!parsed.stage1||!parsed.stage2||!parsed.stage3){
+      throw new Error('생성된 멘트 형식이 올바르지 않아요. 다시 시도해주세요.');
+    }
     generatedStages=[{level:1,label:'1단계',time:60,helpCount:0,tasks:parsed.stage1},{level:2,label:'2단계',time:60,helpCount:2,tasks:parsed.stage2},{level:3,label:'3단계',time:60,helpCount:3,tasks:parsed.stage3}];
     generatedVillainSpeech=parsed.villainSpeech||'이 수업 많이 어려우시죠? 😏';
     document.getElementById('ai-status').textContent='✅ 생성 완료!';
